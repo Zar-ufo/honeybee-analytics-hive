@@ -26,13 +26,15 @@ export function Reports() {
       const [invoicesRes, paymentsRes, customersRes] = await Promise.all([
         supabase.from("invoices").select("total_amount, status"),
         supabase.from("payments").select("amount"),
-        supabase.from("invoices").select("customer_name").distinct(),
+        supabase.from("invoices").select("customer_name"),
       ]);
 
       const totalRevenue = paymentsRes.data?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
       const totalInvoices = invoicesRes.data?.length || 0;
       const paidInvoices = invoicesRes.data?.filter(inv => inv.status === 'paid').length || 0;
-      const uniqueCustomers = new Set(invoicesRes.data?.map(inv => inv.customer_name)).size || 0;
+      
+      // Get unique customers by processing the data manually
+      const uniqueCustomers = new Set(customersRes.data?.map(inv => inv.customer_name)).size || 0;
 
       return {
         totalRevenue,
