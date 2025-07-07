@@ -1,0 +1,232 @@
+
+import { useForm } from "react-hook-form";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+
+interface PaymentFormData {
+  invoice_id?: string;
+  customer_name: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  reference_number?: string;
+  notes?: string;
+  status: string;
+}
+
+interface CreatePaymentDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function CreatePaymentDialog({ open, onOpenChange }: CreatePaymentDialogProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { register, handleSubmit, reset, setValue, watch } = useForm<PaymentFormData>({
+    defaultValues: {
+      status: "completed",
+      payment_method: "cash",
+      payment_date: new Date().toISOString().split('T')[0],
+    },
+  });
+
+  // Fetch invoices for dropdown
+  const { data: invoices } = useQuery({
+    queryKey: ["invoices-for-payment"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, customer_name, total_amount")
+        .in("status", ["sent", "overdue"])
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const createPaymentMutation = useMutation({
+    mutationFn: async (data: PaymentFormData) => {
+      const { data: payment, error } = await supabase
+        .from("payments")
+        .insert({
+          invoice_id: data.invoice_id || null,
+          customer_name: data.customer_name,
+          amount: data.amount,
+          payment_date: data.payment_date,
+          payment_method: data.payment_method,
+          reference_number: data.reference_number || null,
+          notes: data.notes || null,
+          status: data.status,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return payment;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Payment recorded successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      reset();
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to record payment: " + error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: PaymentFormData) => {
+    createPaymentMutation.mutate(data);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Record New Payment</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2 col-span-2">
+              <Label htmlFor="invoice_id">Link to Invoice (Optional)</Label>
+              <Select onValueChange={(value) => setValue("invoice_id", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an invoice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {invoices?.map((invoice) => (
+                    <SelectItem key={invoice.id} value={invoice.id}>
+                      {invoice.invoice_number} - {invoice.customer_name} (${Number(invoice.total_amount).toFixed(2)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="customer_name">Customer Name</Label>
+              <Input
+                id="customer_name"
+                {...register("customer_name", { required: true })}
+                placeholder="Enter customer name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                {...register("amount", { required: true, valueAsNumber: true })}
+                placeholder="0.00"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="payment_date">Payment Date</Label>
+              <Input
+                id="payment_date"
+                type="date"
+                {...register("payment_date", { required: true })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="payment_method">Payment Method</Label>
+              <Select onValueChange={(value) => setValue("payment_method", value)} defaultValue="cash">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="check">Check</SelectItem>
+                  <SelectItem value="credit_card">Credit Card</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="reference_number">Reference Number</Label>
+              <Input
+                id="reference_number"
+                {...register("reference_number")}
+                placeholder="Transaction/Check number"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select onValueChange={(value) => setValue("status", value)} defaultValue="completed">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              {...register("notes")}
+              placeholder="Additional notes (optional)"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              className="honey-gradient"
+              disabled={createPaymentMutation.isPending}
+            >
+              {createPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
