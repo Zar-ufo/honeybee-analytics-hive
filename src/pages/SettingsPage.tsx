@@ -1,11 +1,11 @@
 
 import Layout from "@/components/Layout";
-import { Settings } from "@/components/Settings";
+import { CompanyEmployeeManager } from "@/components/CompanyEmployeeManager";
 
 const SettingsPage = () => {
   return (
     <Layout>
-      <Settings />
+      <CompanyEmployeeManager />
     </Layout>
   );
 };
