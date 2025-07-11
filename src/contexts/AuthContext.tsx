@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,8 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  employee: any | null;
+  signInEmployee: (name: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -17,63 +16,103 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [employee, setEmployee] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    checkSession();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName
+  const checkSession = async () => {
+    try {
+      // Check if there's a stored employee session
+      const storedEmployee = localStorage.getItem('employee_session');
+      if (storedEmployee) {
+        const employeeData = JSON.parse(storedEmployee);
+        
+        // Verify the employee still exists and is active
+        const { data: emp, error } = await supabase
+          .from('employees')
+          .select(`
+            *,
+            companies (
+              id,
+              name,
+              email,
+              phone,
+              address
+            )
+          `)
+          .eq('id', employeeData.id)
+          .eq('is_active', true)
+          .single();
+
+        if (!error && emp) {
+          setEmployee(emp);
+        } else {
+          localStorage.removeItem('employee_session');
         }
       }
-    });
-    
-    return { error };
+    } catch (error) {
+      console.error('Error checking session:', error);
+      localStorage.removeItem('employee_session');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    return { error };
+  const signInEmployee = async (name: string, password: string) => {
+    try {
+      setLoading(true);
+      
+      // Query employee by name and password
+      const { data: emp, error } = await supabase
+        .from('employees')
+        .select(`
+          *,
+          companies (
+            id,
+            name,
+            email,
+            phone,
+            address
+          )
+        `)
+        .eq('name', name)
+        .eq('password', password)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !emp) {
+        return { error: { message: 'Invalid name or password' } };
+      }
+
+      // Store employee session
+      setEmployee(emp);
+      localStorage.setItem('employee_session', JSON.stringify(emp));
+      
+      return { error: null };
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return { error: { message: 'An error occurred during sign in' } };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setEmployee(null);
+    setUser(null);
+    setSession(null);
+    localStorage.removeItem('employee_session');
   };
 
   const value = {
     user,
     session,
-    signUp,
-    signIn,
+    employee,
+    signInEmployee,
     signOut,
     loading
   };

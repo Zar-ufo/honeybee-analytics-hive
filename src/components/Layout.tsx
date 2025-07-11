@@ -1,4 +1,3 @@
-
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
+  const { employee, signOut } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
@@ -24,7 +23,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-muted-foreground">
-                Welcome back, {user?.user_metadata?.full_name || user?.email}
+                Welcome back, {employee?.name}
+                {employee?.companies && (
+                  <span className="block text-xs">
+                    {employee.companies.name} - {employee.role}
+                  </span>
+                )}
               </div>
               <Button
                 variant="outline"
