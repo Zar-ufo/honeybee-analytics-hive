@@ -94,12 +94,21 @@ export function Products() {
 
   const addProductMutation = useMutation({
     mutationFn: async (productData: Partial<Product>) => {
+      // Ensure required fields are present
+      const productToInsert = {
+        name: productData.name || "",
+        sku: productData.sku || "",
+        category: productData.category || "",
+        price: productData.price || 0,
+        stock: productData.stock || 0,
+        status: productData.status || "active",
+        description: productData.description || "",
+        company_id: selectedCompany
+      };
+
       const { data, error } = await supabase
         .from('products')
-        .insert({
-          ...productData,
-          company_id: selectedCompany
-        })
+        .insert(productToInsert)
         .select()
         .single();
       
