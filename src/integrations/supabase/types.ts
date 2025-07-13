@@ -52,9 +52,9 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          password: string
           role: string | null
           updated_at: string
-          user_id: string | null
         }
         Insert: {
           company_id: string
@@ -63,9 +63,9 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          password: string
           role?: string | null
           updated_at?: string
-          user_id?: string | null
         }
         Update: {
           company_id?: string
@@ -74,9 +74,9 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          password?: string
           role?: string | null
           updated_at?: string
-          user_id?: string | null
         }
         Relationships: [
           {
@@ -210,56 +210,6 @@ export type Database = {
         }
         Relationships: []
       }
-      password_settings: {
-        Row: {
-          company_id: string
-          created_at: string
-          id: string
-          max_login_attempts: number
-          min_length: number
-          password_expiry_days: number | null
-          require_lowercase: boolean
-          require_numbers: boolean
-          require_special_chars: boolean
-          require_uppercase: boolean
-          updated_at: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          id?: string
-          max_login_attempts?: number
-          min_length?: number
-          password_expiry_days?: number | null
-          require_lowercase?: boolean
-          require_numbers?: boolean
-          require_special_chars?: boolean
-          require_uppercase?: boolean
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          id?: string
-          max_login_attempts?: number
-          min_length?: number
-          password_expiry_days?: number | null
-          require_lowercase?: boolean
-          require_numbers?: boolean
-          require_special_chars?: boolean
-          require_uppercase?: boolean
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "password_settings_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: true
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payments: {
         Row: {
           amount: number
@@ -362,33 +312,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      user_profiles: {
-        Row: {
-          avatar_url: string | null
-          created_at: string
-          email: string
-          full_name: string | null
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          created_at?: string
-          email: string
-          full_name?: string | null
-          id: string
-          updated_at?: string
-        }
-        Update: {
-          avatar_url?: string | null
-          created_at?: string
-          email?: string
-          full_name?: string | null
-          id?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
     }
     Views: {

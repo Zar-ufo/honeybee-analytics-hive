@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface Product {
@@ -26,9 +26,15 @@ interface Product {
   company_id: string;
 }
 
+interface Company {
+  id: string;
+  name: string;
+}
+
 export function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<string>("");
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
     sku: "",
@@ -39,25 +45,45 @@ export function Products() {
     description: ""
   });
 
-  const { employee } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch products for the current company
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', employee?.company_id],
+  // Fetch companies
+  const { data: companies = [] } = useQuery({
+    queryKey: ['companies'],
     queryFn: async () => {
-      if (!employee?.company_id) return [];
+      const { data, error } = await supabase
+        .from('companies')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      return data as Company[];
+    }
+  });
+
+  // Set default company when companies load
+  useEffect(() => {
+    if (companies.length > 0 && !selectedCompany) {
+      setSelectedCompany(companies[0].id);
+    }
+  }, [companies, selectedCompany]);
+
+  // Fetch products for selected company
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: ['products', selectedCompany],
+    queryFn: async () => {
+      if (!selectedCompany) return [];
       
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('company_id', employee.company_id)
+        .eq('company_id', selectedCompany)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data as Product[];
     },
-    enabled: !!employee?.company_id
+    enabled: !!selectedCompany
   });
 
   const filteredProducts = products.filter(product =>
@@ -68,6 +94,7 @@ export function Products() {
 
   const addProductMutation = useMutation({
     mutationFn: async (productData: Partial<Product>) => {
+      // Ensure required fields are present
       const productToInsert = {
         name: productData.name || "",
         sku: productData.sku || "",
@@ -76,7 +103,7 @@ export function Products() {
         stock: productData.stock || 0,
         status: productData.status || "active",
         description: productData.description || "",
-        company_id: employee?.company_id
+        company_id: selectedCompany
       };
 
       const { data, error } = await supabase
@@ -141,10 +168,10 @@ export function Products() {
   };
 
   const handleAddProduct = () => {
-    if (newProduct.name && newProduct.sku && newProduct.category) {
+    if (newProduct.name && newProduct.sku && newProduct.category && selectedCompany) {
       addProductMutation.mutate(newProduct);
     } else {
-      toast.error("Please fill in all required fields.");
+      toast.error("Please fill in all required fields and select a company.");
     }
   };
 
@@ -158,6 +185,8 @@ export function Products() {
   const activeProducts = products.filter(p => p.status === "active").length;
   const lowStockProducts = products.filter(p => p.status === "low-stock" || p.stock <= 10).length;
   const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
+
+  const selectedCompanyName = companies.find(c => c.id === selectedCompany)?.name || 'Select Company';
 
   if (isLoading) {
     return (
@@ -175,95 +204,119 @@ export function Products() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Products</h1>
-          <p className="text-muted-foreground">
-            Manage your product inventory for {employee?.companies?.name}
-          </p>
+          <p className="text-muted-foreground">Manage your product inventory for {selectedCompanyName}</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
-              <DialogDescription>
-                Enter the details for your new product.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Name</Label>
-                <Input
-                  id="name"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="sku" className="text-right">SKU</Label>
-                <Input
-                  id="sku"
-                  value={newProduct.sku}
-                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="category" className="text-right">Category</Label>
-                <Select value={newProduct.category} onValueChange={(value) => setNewProduct({ ...newProduct, category: value })}>
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Honey Products">Honey Products</SelectItem>
-                    <SelectItem value="Candles">Candles</SelectItem>
-                    <SelectItem value="Supplements">Supplements</SelectItem>
-                    <SelectItem value="Raw Products">Raw Products</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="price" className="text-right">Price</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={newProduct.price}
-                  onChange={(e) => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) || 0 })}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="stock" className="text-right">Stock</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  value={newProduct.stock}
-                  onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) || 0 })}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">Description</Label>
-                <Textarea
-                  id="description"
-                  value={newProduct.description}
-                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                  className="col-span-3"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddProduct} disabled={addProductMutation.isPending}>
-                {addProductMutation.isPending ? "Adding..." : "Add Product"}
+        <div className="flex gap-4 items-center">
+          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select Company" />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2" disabled={!selectedCompany}>
+                <Plus className="h-4 w-4" />
+                Add Product
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New Product</DialogTitle>
+                <DialogDescription>
+                  Enter the details for your new product.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="name"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="sku" className="text-right">
+                    SKU
+                  </Label>
+                  <Input
+                    id="sku"
+                    value={newProduct.sku}
+                    onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="category" className="text-right">
+                    Category
+                  </Label>
+                  <Select value={newProduct.category} onValueChange={(value) => setNewProduct({ ...newProduct, category: value })}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Honey Products">Honey Products</SelectItem>
+                      <SelectItem value="Candles">Candles</SelectItem>
+                      <SelectItem value="Supplements">Supplements</SelectItem>
+                      <SelectItem value="Raw Products">Raw Products</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="price" className="text-right">
+                    Price
+                  </Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) || 0 })}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="stock" className="text-right">
+                    Stock
+                  </Label>
+                  <Input
+                    id="stock"
+                    type="number"
+                    value={newProduct.stock}
+                    onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) || 0 })}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="description" className="text-right">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleAddProduct} disabled={addProductMutation.isPending}>
+                  {addProductMutation.isPending ? "Adding..." : "Add Product"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats Cards */}
