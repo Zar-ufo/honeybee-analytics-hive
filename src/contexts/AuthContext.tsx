@@ -2,10 +2,29 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface AuthEmployee {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string | null;
+  is_active: boolean | null;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string | null;
+  companies: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+  };
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  employee: any | null;
+  employee: AuthEmployee | null;
   signInEmployee: (name: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -16,7 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [employee, setEmployee] = useState<any | null>(null);
+  const [employee, setEmployee] = useState<AuthEmployee | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,22 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Verify the employee still exists and is active
         const { data: emp, error } = await supabase
           .from('employees')
-          .select(`
-            *,
-            companies (
-              id,
-              name,
-              email,
-              phone,
-              address
-            )
-          `)
+          .select('*, companies(name)')
           .eq('id', employeeData.id)
           .eq('is_active', true)
-          .single();
+          .single() as { data: any; error: any };
 
         if (!error && emp) {
-          setEmployee(emp);
+          setEmployee(emp as AuthEmployee);
         } else {
           localStorage.removeItem('employee_session');
         }
@@ -67,18 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       
       // Query employee by name and password
-      const { data: emp, error } = await supabase
+      const { data: emp, error }: any = await supabase
         .from('employees')
-        .select(`
-          *,
-          companies (
-            id,
-            name,
-            email,
-            phone,
-            address
-          )
-        `)
+        .select('*, companies(name)')
         .eq('name', name)
         .eq('password', password)
         .eq('is_active', true)
@@ -89,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Store employee session
-      setEmployee(emp);
+      setEmployee(emp as AuthEmployee);
       localStorage.setItem('employee_session', JSON.stringify(emp));
       
       return { error: null };
