@@ -70,7 +70,10 @@ export function CompanyEmployeeManager() {
       const { data, error } = await supabase
         .from('employees')
         .insert({
-          ...employeeData,
+          name: employeeData.name,
+          email: employeeData.email || null,
+          password: employeeData.password,
+          role: employeeData.role,
           company_id: currentEmployee?.company_id,
           is_active: true
         })
@@ -203,7 +206,7 @@ export function CompanyEmployeeManager() {
             <DialogHeader>
               <DialogTitle>Add New Employee</DialogTitle>
               <DialogDescription>
-                Create a new employee account for your company.
+                Create a new employee account for your company. The employee will use the name and password to log in.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -214,7 +217,7 @@ export function CompanyEmployeeManager() {
                   value={newEmployee.name}
                   onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
                   className="col-span-3"
-                  placeholder="Employee full name"
+                  placeholder="Employee full name (used for login)"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -266,13 +269,13 @@ export function CompanyEmployeeManager() {
       <Card>
         <CardHeader>
           <CardTitle>Company Employees</CardTitle>
-          <CardDescription>Manage employee accounts and permissions</CardDescription>
+          <CardDescription>Manage employee accounts and permissions. Employees use their name and password to log in.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Name (Login)</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
