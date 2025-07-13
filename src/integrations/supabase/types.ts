@@ -210,6 +210,56 @@ export type Database = {
         }
         Relationships: []
       }
+      password_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          max_login_attempts: number
+          min_length: number
+          password_expiry_days: number | null
+          require_lowercase: boolean
+          require_numbers: boolean
+          require_special_chars: boolean
+          require_uppercase: boolean
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          max_login_attempts?: number
+          min_length?: number
+          password_expiry_days?: number | null
+          require_lowercase?: boolean
+          require_numbers?: boolean
+          require_special_chars?: boolean
+          require_uppercase?: boolean
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          max_login_attempts?: number
+          min_length?: number
+          password_expiry_days?: number | null
+          require_lowercase?: boolean
+          require_numbers?: boolean
+          require_special_chars?: boolean
+          require_uppercase?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "password_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
