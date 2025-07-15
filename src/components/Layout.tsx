@@ -1,6 +1,7 @@
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <h1 className="text-2xl font-bold honey-text">HoneyBEE</h1>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle />
               <div className="text-sm text-muted-foreground">
                 Welcome back, Admin
               </div>

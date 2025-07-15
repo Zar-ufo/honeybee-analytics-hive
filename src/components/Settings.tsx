@@ -10,8 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, User, Building, Bell, Shield, CreditCard, Mail } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 
 export function Settings() {
+  const { theme, setTheme } = useTheme();
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -89,7 +92,10 @@ export function Settings() {
                     <Label>Dark Mode</Label>
                     <p className="text-sm text-muted-foreground">Toggle dark mode interface</p>
                   </div>
-                  <Switch />
+                  <Switch 
+                    checked={theme === "dark"}
+                    onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+                  />
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
