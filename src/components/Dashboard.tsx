@@ -1,7 +1,8 @@
 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { 
   BarChart, 
   Bar, 
@@ -18,23 +19,104 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, DollarSign, Users, Package, FileText } from "lucide-react";
 
-const monthlyData = [
-  { name: 'Jan', revenue: 4000, expenses: 2400 },
-  { name: 'Feb', revenue: 3000, expenses: 1398 },
-  { name: 'Mar', revenue: 2000, expenses: 9800 },
-  { name: 'Apr', revenue: 2780, expenses: 3908 },
-  { name: 'May', revenue: 1890, expenses: 4800 },
-  { name: 'Jun', revenue: 2390, expenses: 3800 },
-];
-
-const categoryData = [
-  { name: 'Products', value: 400, color: '#F59E0B' },
-  { name: 'Services', value: 300, color: '#FCD34D' },
-  { name: 'Consulting', value: 200, color: '#FEF3C7' },
-  { name: 'Other', value: 100, color: '#FFFBEB' },
-];
-
 export function Dashboard() {
+  // Fetch dashboard data
+  const { data: invoices } = useQuery({
+    queryKey: ["dashboard-invoices"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: payments } = useQuery({
+    queryKey: ["dashboard-payments"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ["dashboard-customers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["dashboard-products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Calculate metrics
+  const totalRevenue = payments?.reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0) || 0;
+  const totalCustomers = customers?.length || 0;
+  const totalProducts = products?.length || 0;
+  const pendingInvoices = invoices?.filter(inv => inv.status === 'sent' || inv.status === 'overdue').length || 0;
+
+  // Generate monthly revenue data from payments
+  const monthlyData = (() => {
+    if (!payments) return [];
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const currentYear = new Date().getFullYear();
+    const monthlyRevenue = new Array(12).fill(0);
+    
+    payments.forEach(payment => {
+      const paymentDate = new Date(payment.payment_date);
+      if (paymentDate.getFullYear() === currentYear) {
+        monthlyRevenue[paymentDate.getMonth()] += parseFloat(payment.amount.toString());
+      }
+    });
+    
+    return monthNames.map((name, index) => ({
+      name,
+      revenue: monthlyRevenue[index],
+      expenses: monthlyRevenue[index] * 0.6 // Mock expenses as 60% of revenue
+    }));
+  })();
+
+  // Generate invoice status data
+  const invoiceStatusData = (() => {
+    if (!invoices) return [];
+    
+    const statusCounts = invoices.reduce((acc, invoice) => {
+      acc[invoice.status] = (acc[invoice.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const colors = {
+      draft: '#94A3B8',
+      sent: '#3B82F6', 
+      paid: '#10B981',
+      overdue: '#EF4444',
+      cancelled: '#6B7280'
+    };
+    
+    return Object.entries(statusCounts).map(([status, count], index) => ({
+      name: status.charAt(0).toUpperCase() + status.slice(1),
+      value: count,
+      color: colors[status as keyof typeof colors] || '#8B5CF6'
+    }));
+  })();
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -51,38 +133,38 @@ export function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
+            <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
             <div className="flex items-center text-xs text-green-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              +20.1% from last month
+              From {payments?.length || 0} payments
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,350</div>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
             <div className="flex items-center text-xs text-green-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              +180 from last month
+              Active customers
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Products Sold</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12,234</div>
-            <div className="flex items-center text-xs text-red-600">
-              <TrendingDown className="h-3 w-3 mr-1" />
-              -4% from last month
+            <div className="text-2xl font-bold">{totalProducts}</div>
+            <div className="flex items-center text-xs text-blue-600">
+              <Package className="h-3 w-3 mr-1" />
+              In inventory
             </div>
           </CardContent>
         </Card>
@@ -93,9 +175,10 @@ export function Dashboard() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">573</div>
+            <div className="text-2xl font-bold">{pendingInvoices}</div>
             <div className="flex items-center text-xs text-yellow-600">
-              +12 from yesterday
+              <FileText className="h-3 w-3 mr-1" />
+              Awaiting payment
             </div>
           </CardContent>
         </Card>
@@ -105,8 +188,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Revenue vs Expenses</CardTitle>
-            <CardDescription>Monthly comparison for the current year</CardDescription>
+            <CardTitle>Monthly Revenue</CardTitle>
+            <CardDescription>Revenue trends for the current year</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -114,7 +197,7 @@ export function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Amount']} />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" />
                 <Bar dataKey="expenses" fill="hsl(var(--muted-foreground))" />
               </BarChart>
@@ -124,21 +207,21 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Revenue by Category</CardTitle>
-            <CardDescription>Distribution of revenue sources</CardDescription>
+            <CardTitle>Invoice Status Distribution</CardTitle>
+            <CardDescription>Current status of all invoices</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={categoryData}
+                  data={invoiceStatusData}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
-                  {categoryData.map((entry, index) => (
+                  {invoiceStatusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>

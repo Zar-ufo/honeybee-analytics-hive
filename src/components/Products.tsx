@@ -1,114 +1,65 @@
-
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface Product {
   id: string;
   name: string;
-  sku: string;
-  category: string;
-  price: number;
-  stock: number;
-  status: "active" | "inactive" | "low-stock";
   description: string;
-  company_id: string;
-}
-
-interface Company {
-  id: string;
-  name: string;
+  price: number;
+  sku: string;
+  stock_quantity: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export function Products() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState<string>("");
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newProduct, setNewProduct] = useState({
     name: "",
+    description: "",
+    price: "",
     sku: "",
-    category: "",
-    price: 0,
-    stock: 0,
-    status: "active",
-    description: ""
+    stock_quantity: ""
   });
-
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch companies
-  const { data: companies = [] } = useQuery({
-    queryKey: ['companies'],
+  const { data: products, isLoading } = useQuery({
+    queryKey: ["products"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('companies')
-        .select('id, name')
-        .order('name');
-      
-      if (error) throw error;
-      return data as Company[];
-    }
-  });
-
-  // Set default company when companies load
-  useEffect(() => {
-    if (companies.length > 0 && !selectedCompany) {
-      setSelectedCompany(companies[0].id);
-    }
-  }, [companies, selectedCompany]);
-
-  // Fetch products for selected company
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', selectedCompany],
-    queryFn: async () => {
-      if (!selectedCompany) return [];
-      
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('company_id', selectedCompany)
-        .order('created_at', { ascending: false });
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
       
       if (error) throw error;
       return data as Product[];
     },
-    enabled: !!selectedCompany
   });
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const addProductMutation = useMutation({
-    mutationFn: async (productData: Partial<Product>) => {
-      // Ensure required fields are present
-      const productToInsert = {
-        name: productData.name || "",
-        sku: productData.sku || "",
-        category: productData.category || "",
-        price: productData.price || 0,
-        stock: productData.stock || 0,
-        status: productData.status || "active",
-        description: productData.description || "",
-        company_id: selectedCompany
-      };
-
+  const createProductMutation = useMutation({
+    mutationFn: async (productData: typeof newProduct) => {
       const { data, error } = await supabase
-        .from('products')
-        .insert(productToInsert)
+        .from("products")
+        .insert([{
+          name: productData.name,
+          description: productData.description,
+          price: parseFloat(productData.price) || 0,
+          sku: productData.sku,
+          stock_quantity: parseInt(productData.stock_quantity) || 0
+        }])
         .select()
         .single();
       
@@ -116,207 +67,153 @@ export function Products() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success("Product added successfully!");
-      setIsAddDialogOpen(false);
-      setNewProduct({
-        name: "",
-        sku: "",
-        category: "",
-        price: 0,
-        stock: 0,
-        status: "active",
-        description: ""
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setShowCreateDialog(false);
+      setNewProduct({ name: "", description: "", price: "", sku: "", stock_quantity: "" });
+      toast({
+        title: "Success",
+        description: "Product created successfully!",
       });
     },
     onError: (error) => {
-      console.error('Error adding product:', error);
-      toast.error("Failed to add product. Please try again.");
-    }
+      toast({
+        title: "Error",
+        description: "Failed to create product. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
       const { error } = await supabase
-        .from('products')
+        .from("products")
         .delete()
-        .eq('id', productId);
+        .eq("id", productId);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success("Product deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      toast({
+        title: "Success",
+        description: "Product deleted successfully!",
+      });
     },
     onError: (error) => {
-      console.error('Error deleting product:', error);
-      toast.error("Failed to delete product. Please try again.");
-    }
+      toast({
+        title: "Error",
+        description: "Failed to delete product. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
-  const getStatusBadge = (status: Product['status']) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case "inactive":
-        return <Badge variant="secondary">Inactive</Badge>;
-      case "low-stock":
-        return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
+  const filteredProducts = products?.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createProductMutation.mutate(newProduct);
   };
 
-  const handleAddProduct = () => {
-    if (newProduct.name && newProduct.sku && newProduct.category && selectedCompany) {
-      addProductMutation.mutate(newProduct);
-    } else {
-      toast.error("Please fill in all required fields and select a company.");
-    }
-  };
-
-  const handleDeleteProduct = (productId: string) => {
-    if (confirm("Are you sure you want to delete this product?")) {
+  const handleDelete = (productId: string) => {
+    if (window.confirm("Are you sure you want to delete this product?")) {
       deleteProductMutation.mutate(productId);
     }
   };
 
-  const totalProducts = products.length;
-  const activeProducts = products.filter(p => p.status === "active").length;
-  const lowStockProducts = products.filter(p => p.status === "low-stock" || p.stock <= 10).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.price * p.stock), 0);
-
-  const selectedCompanyName = companies.find(c => c.id === selectedCompany)?.name || 'Select Company';
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-lg">Loading products...</div>
-        </div>
-      </div>
-    );
-  }
+  const getStockBadge = (stock: number) => {
+    if (stock === 0) return <Badge variant="destructive">Out of Stock</Badge>;
+    if (stock <= 10) return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">Low Stock</Badge>;
+    return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">In Stock</Badge>;
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Products</h1>
-          <p className="text-muted-foreground">Manage your product inventory for {selectedCompanyName}</p>
+          <p className="text-muted-foreground">Manage your product inventory</p>
         </div>
-        <div className="flex gap-4 items-center">
-          <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select Company" />
-            </SelectTrigger>
-            <SelectContent>
-              {companies.map((company) => (
-                <SelectItem key={company.id} value={company.id}>
-                  {company.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2" disabled={!selectedCompany}>
-                <Plus className="h-4 w-4" />
-                Add Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add New Product</DialogTitle>
-                <DialogDescription>
-                  Enter the details for your new product.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="name"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="sku" className="text-right">
-                    SKU
-                  </Label>
-                  <Input
-                    id="sku"
-                    value={newProduct.sku}
-                    onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="category" className="text-right">
-                    Category
-                  </Label>
-                  <Select value={newProduct.category} onValueChange={(value) => setNewProduct({ ...newProduct, category: value })}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Honey Products">Honey Products</SelectItem>
-                      <SelectItem value="Candles">Candles</SelectItem>
-                      <SelectItem value="Supplements">Supplements</SelectItem>
-                      <SelectItem value="Raw Products">Raw Products</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="price" className="text-right">
-                    Price
-                  </Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: parseFloat(e.target.value) || 0 })}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="stock" className="text-right">
-                    Stock
-                  </Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    value={newProduct.stock}
-                    onChange={(e) => setNewProduct({ ...newProduct, stock: parseInt(e.target.value) || 0 })}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="description" className="text-right">
-                    Description
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={newProduct.description}
-                    onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                    className="col-span-3"
-                  />
-                </div>
+        
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Product</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={newProduct.name}
+                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                  required
+                />
               </div>
-              <DialogFooter>
-                <Button onClick={handleAddProduct} disabled={addProductMutation.isPending}>
-                  {addProductMutation.isPending ? "Adding..." : "Add Product"}
+              <div>
+                <Label htmlFor="sku">SKU *</Label>
+                <Input
+                  id="sku"
+                  value={newProduct.sku}
+                  onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="price">Price *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={newProduct.price}
+                  onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="stock_quantity">Stock Quantity *</Label>
+                <Input
+                  id="stock_quantity"
+                  type="number"
+                  value={newProduct.stock_quantity}
+                  onChange={(e) => setNewProduct({ ...newProduct, stock_quantity: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowCreateDialog(false)}
+                >
+                  Cancel
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+                <Button type="submit" disabled={createProductMutation.isPending}>
+                  {createProductMutation.isPending ? "Creating..." : "Create Product"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats Cards */}
@@ -327,27 +224,31 @@ export function Products() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalProducts}</div>
+            <div className="text-2xl font-bold">{products?.length || 0}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Products</CardTitle>
+            <CardTitle className="text-sm font-medium">In Stock</CardTitle>
             <Package className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{activeProducts}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {products?.filter(p => p.stock_quantity > 10).length || 0}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
+            <CardTitle className="text-sm font-medium">Low Stock</CardTitle>
             <Package className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{lowStockProducts}</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {products?.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 10).length || 0}
+            </div>
           </CardContent>
         </Card>
 
@@ -357,23 +258,26 @@ export function Products() {
             <Package className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              ${products?.reduce((sum, p) => sum + (p.price * p.stock_quantity), 0).toFixed(2) || "0.00"}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Product Inventory</CardTitle>
-          <CardDescription>Manage your products and inventory levels</CardDescription>
+          <CardTitle>All Products</CardTitle>
+          <CardDescription>
+            {products?.length || 0} total products
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search products by name, SKU, or category..."
+                placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -381,69 +285,57 @@ export function Products() {
             </div>
           </div>
 
-          {/* Products Table */}
-          <div className="rounded-md border">
+          {isLoading ? (
+            <div className="text-center py-8">Loading products...</div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {searchTerm ? "No products found matching your search." : "No products yet. Create your first product!"}
+            </div>
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Category</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      {searchTerm ? "No products found matching your search." : "No products found. Add your first product to get started."}
+                {filteredProducts.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-sm text-muted-foreground">{product.description}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                    <TableCell className="font-medium">${product.price.toFixed(2)}</TableCell>
+                    <TableCell>{product.stock_quantity} units</TableCell>
+                    <TableCell>{getStockBadge(product.stock_quantity)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm">
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDelete(product.id)}
+                          disabled={deleteProductMutation.isPending}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredProducts.map((product) => (
-                    <TableRow key={product.id} className="hover:bg-muted/50">
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-muted-foreground">{product.description}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                      <TableCell>{product.category}</TableCell>
-                      <TableCell className="font-medium">${product.price.toFixed(2)}</TableCell>
-                      <TableCell>
-                        <span className={product.stock <= 10 ? "text-yellow-600 font-medium" : ""}>
-                          {product.stock} units
-                        </span>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(product.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="gap-1">
-                            <Edit className="h-3 w-3" />
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-1 text-red-600 hover:text-red-700"
-                            onClick={() => handleDeleteProduct(product.id)}
-                            disabled={deleteProductMutation.isPending}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
