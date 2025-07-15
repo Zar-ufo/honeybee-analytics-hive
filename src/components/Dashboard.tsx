@@ -18,8 +18,11 @@ import {
   Cell
 } from "recharts";
 import { TrendingUp, TrendingDown, DollarSign, Users, Package, FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export function Dashboard() {
+  const { t } = useTranslation();
+
   // Fetch dashboard data
   const { data: invoices } = useQuery({
     queryKey: ["dashboard-invoices"],
@@ -121,64 +124,64 @@ export function Dashboard() {
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome to your HoneyBEE accounting overview</p>
+        <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
+        <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
       </div>
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalRevenue')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
             <div className="flex items-center text-xs text-green-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              From {payments?.length || 0} payments
+              {t('dashboard.revenueFromPayments', { count: payments?.length || 0 })}
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalCustomers')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalCustomers}</div>
             <div className="flex items-center text-xs text-green-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              Active customers
+              {t('dashboard.activeCustomers')}
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.totalProducts')}</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalProducts}</div>
             <div className="flex items-center text-xs text-blue-600">
               <Package className="h-3 w-3 mr-1" />
-              In inventory
+              {t('dashboard.inInventory')}
             </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('dashboard.pendingInvoices')}</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{pendingInvoices}</div>
             <div className="flex items-center text-xs text-yellow-600">
               <FileText className="h-3 w-3 mr-1" />
-              Awaiting payment
+              {t('dashboard.awaitingPayment')}
             </div>
           </CardContent>
         </Card>
@@ -188,7 +191,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Monthly Revenue</CardTitle>
+            <CardTitle>{t('dashboard.monthlyRevenue')}</CardTitle>
             <CardDescription>Revenue trends for the current year</CardDescription>
           </CardHeader>
           <CardContent>
@@ -207,7 +210,7 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Invoice Status Distribution</CardTitle>
+            <CardTitle>{t('dashboard.invoiceStatusDistribution')}</CardTitle>
             <CardDescription>Current status of all invoices</CardDescription>
           </CardHeader>
           <CardContent>
@@ -235,7 +238,7 @@ export function Dashboard() {
       {/* Recent Activity */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
           <CardDescription>Latest transactions and updates</CardDescription>
         </CardHeader>
         <CardContent>

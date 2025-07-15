@@ -23,23 +23,26 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useTranslation } from "react-i18next";
 
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Analytics", url: "/analytics", icon: PieChart },
-  { title: "Products", url: "/products", icon: Package },
-  { title: "Customers", url: "/customers", icon: Users },
-  { title: "Invoices", url: "/invoices", icon: FileText },
-  { title: "Payments", url: "/payments", icon: CreditCard },
-  { title: "Reports", url: "/reports", icon: TrendingUp },
-  { title: "Settings", url: "/settings", icon: Settings },
-];
 
 export function AppSidebar() {
+  const { t } = useTranslation();
   const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
+
+  const menuItems = [
+    { title: t('navigation.dashboard'), url: "/", icon: BarChart3 },
+    { title: t('navigation.analytics'), url: "/analytics", icon: PieChart },
+    { title: t('navigation.products'), url: "/products", icon: Package },
+    { title: t('navigation.customers'), url: "/customers", icon: Users },
+    { title: t('navigation.invoices'), url: "/invoices", icon: FileText },
+    { title: t('navigation.payments'), url: "/payments", icon: CreditCard },
+    { title: t('navigation.reports'), url: "/reports", icon: TrendingUp },
+    { title: t('navigation.settings'), url: "/settings", icon: Settings },
+  ];
 
   const isActive = (path: string) => {
     if (path === "/" && currentPath === "/") return true;

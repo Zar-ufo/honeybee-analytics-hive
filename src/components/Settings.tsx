@@ -11,26 +11,32 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings as SettingsIcon, User, Building, Bell, Shield, CreditCard, Mail } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+import { useTranslation } from "react-i18next";
 
 export function Settings() {
   const { theme, setTheme } = useTheme();
+  const { t, i18n } = useTranslation();
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">Manage your HoneyBEE account and preferences</p>
+        <h1 className="text-3xl font-bold">{t('settings.title')}</h1>
+        <p className="text-muted-foreground">{t('settings.subtitle')}</p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="company">Company</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="general">{t('settings.general')}</TabsTrigger>
+          <TabsTrigger value="company">{t('settings.company')}</TabsTrigger>
+          <TabsTrigger value="notifications">{t('settings.notifications')}</TabsTrigger>
+          <TabsTrigger value="security">{t('settings.security')}</TabsTrigger>
+          <TabsTrigger value="billing">{t('settings.billing')}</TabsTrigger>
+          <TabsTrigger value="integrations">{t('settings.integrations')}</TabsTrigger>
         </TabsList>
 
         {/* General Settings */}
@@ -40,31 +46,31 @@ export function Settings() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
-                  Profile Information
+                  {t('settings.profileInformation')}
                 </CardTitle>
-                <CardDescription>Update your personal details</CardDescription>
+                <CardDescription>{t('settings.updatePersonalDetails')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">{t('settings.firstName')}</Label>
                     <Input id="firstName" defaultValue="John" />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">{t('settings.lastName')}</Label>
                     <Input id="lastName" defaultValue="Doe" />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">{t('settings.emailAddress')}</Label>
                   <Input id="email" type="email" defaultValue="john.doe@example.com" />
                 </div>
                 <div>
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">{t('settings.phoneNumber')}</Label>
                   <Input id="phone" defaultValue="+1 (555) 123-4567" />
                 </div>
                 <div>
-                  <Label htmlFor="timezone">Timezone</Label>
+                  <Label htmlFor="timezone">{t('settings.timezone')}</Label>
                   <Select defaultValue="utc-5">
                     <SelectTrigger>
                       <SelectValue />
@@ -77,20 +83,20 @@ export function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button>Save Changes</Button>
+                <Button>{t('settings.saveChanges')}</Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>Customize your HoneyBEE experience</CardDescription>
+                <CardTitle>{t('settings.preferences')}</CardTitle>
+                <CardDescription>{t('settings.customizeExperience')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Dark Mode</Label>
-                    <p className="text-sm text-muted-foreground">Toggle dark mode interface</p>
+                    <Label>{t('settings.darkMode')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('settings.toggleDarkMode')}</p>
                   </div>
                   <Switch 
                     checked={theme === "dark"}
@@ -100,23 +106,21 @@ export function Settings() {
                 <Separator />
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Auto-save</Label>
-                    <p className="text-sm text-muted-foreground">Automatically save changes</p>
+                    <Label>{t('settings.autoSave')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('settings.autoSaveChanges')}</p>
                   </div>
                   <Switch defaultChecked />
                 </div>
                 <Separator />
                 <div>
-                  <Label htmlFor="language">Language</Label>
-                  <Select defaultValue="en">
+                  <Label htmlFor="language">{t('settings.language')}</Label>
+                  <Select value={i18n.language} onValueChange={changeLanguage}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Español</SelectItem>
-                      <SelectItem value="fr">Français</SelectItem>
-                      <SelectItem value="de">Deutsch</SelectItem>
+                      <SelectItem value="en">{t('languages.english')}</SelectItem>
+                      <SelectItem value="bn">{t('languages.bangla')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -131,21 +135,21 @@ export function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building className="h-5 w-5" />
-                Company Information
+                {t('settings.companyInformation')}
               </CardTitle>
-              <CardDescription>Manage your company details and branding</CardDescription>
+              <CardDescription>{t('settings.manageCompanyDetails')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="companyName">Company Name</Label>
+                <Label htmlFor="companyName">{t('settings.companyName')}</Label>
                 <Input id="companyName" defaultValue="HoneyBEE Enterprises" />
               </div>
               <div>
-                <Label htmlFor="taxId">Tax ID / EIN</Label>
+                <Label htmlFor="taxId">{t('settings.taxId')}</Label>
                 <Input id="taxId" defaultValue="12-3456789" />
               </div>
               <div>
-                <Label htmlFor="address">Business Address</Label>
+                <Label htmlFor="address">{t('settings.businessAddress')}</Label>
                 <Textarea 
                   id="address" 
                   defaultValue="123 Business Ave, Suite 100&#10;City, State 12345&#10;United States"
@@ -153,7 +157,7 @@ export function Settings() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="industry">Industry</Label>
+                  <Label htmlFor="industry">{t('settings.industry')}</Label>
                   <Select defaultValue="food">
                     <SelectTrigger>
                       <SelectValue />
@@ -167,7 +171,7 @@ export function Settings() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="employees">Number of Employees</Label>
+                  <Label htmlFor="employees">{t('settings.numberOfEmployees')}</Label>
                   <Select defaultValue="1-10">
                     <SelectTrigger>
                       <SelectValue />
@@ -182,10 +186,10 @@ export function Settings() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="website">Website</Label>
+                <Label htmlFor="website">{t('settings.website')}</Label>
                 <Input id="website" defaultValue="https://honeybee.example.com" />
               </div>
-              <Button>Update Company Info</Button>
+              <Button>{t('settings.updateCompanyInfo')}</Button>
             </CardContent>
           </Card>
         </TabsContent>
